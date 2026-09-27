@@ -10,6 +10,8 @@ import {
   EDGE_NEURAL_VOICES,
   KOKORO_VOICES,
   WEBSPEECH_VOICES,
+  MOOD_PRESETS,
+  MoodPreset,
   VoiceItem,
   TtsEngineType,
 } from '@/lib/voiceCatalog';
@@ -57,6 +59,7 @@ export default function HomePage() {
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
   const [text, setText] = useState<string>(SAMPLE_PROMPTS[0].text);
   const [selectedVoice, setSelectedVoice] = useState<VoiceItem>(EDGE_NEURAL_VOICES[0]);
+  const [selectedMoodId, setSelectedMoodId] = useState<string>('all');
   const [speed, setSpeed] = useState<number>(1.0);
 
   // Generation status
@@ -274,6 +277,21 @@ export default function HomePage() {
                 selectedVoiceId={selectedVoice.id}
                 onVoiceSelect={(voice) => setSelectedVoice(voice)}
                 config={config}
+                selectedMoodId={selectedMoodId}
+                onMoodSelect={(mood) => {
+                  setSelectedMoodId(mood.id);
+                  // Auto-switch to first recommended voice if available and enabled
+                  if (mood.recommendedVoiceIds.length > 0) {
+                    const recVoice = ALL_VOICES.find((v) => v.id === mood.recommendedVoiceIds[0]);
+                    if (recVoice) {
+                      setSelectedVoice(recVoice);
+                    }
+                  }
+                  // Prepopulate script prompt if user wants
+                  if (mood.sampleScript && (!text || text === SAMPLE_PROMPTS[0].text)) {
+                    setText(mood.sampleScript);
+                  }
+                }}
               />
 
               {/* Speed Slider */}
