@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "build:worker": "opennextjs-cloudflare build",
+    "next:build": "next build",
+    "build": "next build && opennextjs-cloudflare build --skipNextBuild",
     "deploy": "wrangler deploy",
     "start": "next start",
     "lint": "eslint"
