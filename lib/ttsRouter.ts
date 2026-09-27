@@ -10,6 +10,7 @@ export interface GenerationParams {
   speed: number;
   config: AppConfig;
   onProgress?: ProgressCallback;
+  webSpeechCallbacks?: { onStart?: () => void; onEnd?: () => void; onError?: (err: any) => void };
 }
 
 export interface GenerationResult {
@@ -52,6 +53,7 @@ export async function routeAndSynthesize({
   speed,
   config,
   onProgress,
+  webSpeechCallbacks,
 }: GenerationParams): Promise<GenerationResult> {
   const trimmed = text.trim();
   if (!trimmed) {
@@ -125,7 +127,7 @@ export async function routeAndSynthesize({
         onProgress({ status: 'Playing via native browser speech synthesizer...', progress: 50 });
       }
 
-      const res = await synthesizeWebSpeech(trimmed, voice.id, speed);
+      const res = await synthesizeWebSpeech(trimmed, voice.id, speed, webSpeechCallbacks);
 
       if (onProgress) {
         onProgress({ status: 'Speaking completed!', progress: 100 });

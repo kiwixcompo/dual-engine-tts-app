@@ -39,7 +39,8 @@ export function getBrowserVoices(): Promise<SpeechSynthesisVoice[]> {
 export async function synthesizeWebSpeech(
   text: string,
   voiceUri?: string,
-  rate: number = 1.0
+  rate: number = 1.0,
+  callbacks?: { onStart?: () => void; onEnd?: () => void; onError?: (err: any) => void }
 ): Promise<{ audioUrl: string; duration?: number }> {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     throw new Error('Web Speech API is not supported in this browser.');
@@ -62,15 +63,16 @@ export async function synthesizeWebSpeech(
   // Try MediaStreamAudioDestinationNode if supported, or speech synthesis directly
   return new Promise((resolve, reject) => {
     utterance.onstart = () => {
-      // Speech started
+      callbacks?.onStart?.();
     };
 
     utterance.onerror = (e) => {
+      callbacks?.onError?.(e);
       reject(new Error(`Browser Speech error: ${e.error}`));
     };
 
     utterance.onend = () => {
-      // Finished speaking
+      callbacks?.onEnd?.();
     };
 
     // Trigger synthesis

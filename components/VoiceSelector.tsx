@@ -23,6 +23,7 @@ import {
   Check,
   Loader2,
   Filter,
+  AlertCircle,
 } from 'lucide-react';
 import { AppConfig } from '@/lib/configStore';
 import { routeAndSynthesize } from '@/lib/ttsRouter';
@@ -45,6 +46,7 @@ export function VoiceSelector({
   // Voice Preview State
   const [previewingVoiceId, setPreviewingVoiceId] = useState<string | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState<boolean>(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
 
   // Filter voice categories based on Admin settings
@@ -73,8 +75,13 @@ export function VoiceSelector({
 
   const handleStopPreview = () => {
     if (audioPreviewRef.current) {
-      audioPreviewRef.current.pause();
-      audioPreviewRef.current.currentTime = 0;
+      try {
+        audioPreviewRef.current.pause();
+        audioPreviewRef.current.currentTime = 0;
+        audioPreviewRef.current.removeAttribute('src');
+      } catch (e) {
+        // Ignore cleanup errors
+      }
     }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
@@ -86,7 +93,10 @@ export function VoiceSelector({
   const handlePlayPreview = async (voice: VoiceItem, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
 
-    // If already playing this voice, toggle off
+    // Clear any previous preview error
+    setPreviewError(null);
+
+    // If already previewing this voice, toggle off
     if (previewingVoiceId === voice.id) {
       handleStopPreview();
       return;
@@ -96,11 +106,49 @@ export function VoiceSelector({
     setPreviewingVoiceId(voice.id);
     setIsLoadingPreview(true);
 
+    // Synchronously create/unlock audio object within user click gesture context
+    if (!audioPreviewRef.current) {
+      audioPreviewRef.current = new Audio();
+    }
+    const audio = audioPreviewRef.current;
+
+    // Reset handlers
+    audio.onended = null;
+    audio.onerror = null;
+
     const sampleText =
       voice.sampleText ||
       `Hello! This is ${voice.name}, ready for your narration.`;
 
     try {
+      if (voice.engine === 'webspeech') {
+        // Native browser speech synthesis
+        setIsLoadingPreview(false);
+        await routeAndSynthesize({
+          text: sampleText,
+          voice,
+          speed: 1.0,
+          config,
+          webSpeechCallbacks: {
+            onStart: () => {
+              setIsLoadingPreview(false);
+            },
+            onEnd: () => {
+              setPreviewingVoiceId(null);
+              setIsLoadingPreview(false);
+            },
+            onError: (err) => {
+              console.error('Web Speech preview error:', err);
+              setPreviewError('Browser speech synthesis failed');
+              setPreviewingVoiceId(null);
+              setIsLoadingPreview(false);
+            },
+          },
+        });
+        return;
+      }
+
+      // Audio file based engines (Edge, Kokoro, Puter)
       const result = await routeAndSynthesize({
         text: sampleText,
         voice,
@@ -108,25 +156,28 @@ export function VoiceSelector({
         config,
       });
 
-      // If synthesized successfully, play audio
-      if (!audioPreviewRef.current) {
-        audioPreviewRef.current = new Audio();
+      if (!result.audioUrl) {
+        throw new Error('No audio URL generated for preview');
       }
 
-      audioPreviewRef.current.src = result.audioUrl;
-      audioPreviewRef.current.onended = () => {
+      audio.src = result.audioUrl;
+      audio.onended = () => {
         setPreviewingVoiceId(null);
         setIsLoadingPreview(false);
       };
-      audioPreviewRef.current.onerror = () => {
+      audio.onerror = (e) => {
+        console.error('Audio element playback error:', e);
+        setPreviewError('Audio playback failed in browser');
         setPreviewingVoiceId(null);
         setIsLoadingPreview(false);
       };
 
-      await audioPreviewRef.current.play();
+      await audio.play();
       setIsLoadingPreview(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Preview error:', err);
+      const msg = err?.message || 'Failed to preview voice';
+      setPreviewError(msg);
       setPreviewingVoiceId(null);
       setIsLoadingPreview(false);
     }
@@ -409,6 +460,20 @@ export function VoiceSelector({
                     #{tag}
                   </span>
                 ))}
+              </div>
+            )}
+
+            {previewError && (
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span className="flex-1">{previewError}</span>
+                <button
+                  type="button"
+                  onClick={() => setPreviewError(null)}
+                  className="text-neutral-400 hover:text-white text-xs px-1"
+                >
+                  ✕
+                </button>
               </div>
             )}
           </div>
