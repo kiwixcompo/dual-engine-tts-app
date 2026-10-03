@@ -13,8 +13,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Voiceover Studio | Puter.js & Kokoro TTS",
-  description: "Next.js Text-to-Speech studio powered by Puter.js Cloud and Kokoro In-Browser ONNX neural models.",
+  title: "AI Voiceover Studio | Unlimited Free Multi-Engine TTS",
+  description: "Next.js Text-to-Speech studio powered by Microsoft Edge Neural, Kokoro In-Browser ONNX, and Native Web Speech.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "64x64" },
+    ],
+    apple: [
+      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
